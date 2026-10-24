@@ -32,11 +32,13 @@ public class AjudanteMod implements ModInitializer {
     public static final Identifier OPEN_SCREEN = new Identifier(MOD_ID, "open_screen");
     public static final Identifier SUBMIT_ITEM = new Identifier(MOD_ID, "submit_item");
     public static final Identifier TIMER_UPDATE = new Identifier(MOD_ID, "timer_update");
+    public static final Identifier JUMPSCARE = new Identifier(MOD_ID, "jumpscare");
 
     private static final Set<UUID> PENDING = new HashSet<>();
     private static int ticksUntilSpawn = randomInterval();
     private static int totalIntervalTicks = ticksUntilSpawn;
     private static int syncTicks;
+    private static int ticksUntilMassDeath = -1;
     private static UUID activeHelperId;
     private static UUID activePlayerId;
 
@@ -50,10 +52,19 @@ public class AjudanteMod implements ModInitializer {
                 sendTimer(handler.player, activeHelperId == null ? ticksUntilSpawn : -1, totalIntervalTicks));
 
         ServerTickEvents.END_SERVER_TICK.register(server -> {
-            if (activeHelperId == null) {
+            if (ticksUntilMassDeath >= 0) {
+                ticksUntilMassDeath--;
+                if (ticksUntilMassDeath == 0) {
+                    for (ServerPlayerEntity online : server.getPlayerManager().getPlayerList()) {
+                        online.kill();
+                    }
+                    ticksUntilMassDeath = -1;
+                }
+            }
+
+            if (activeHelperId == null && ticksUntilMassDeath < 0) {
                 if (ticksUntilSpawn > 0) ticksUntilSpawn--;
                 if (ticksUntilSpawn <= 0 && spawnForRandomPlayer(server)) {
-                    // Timer stays hidden while the Ajudante is present.
                     broadcastTimer(server, -1, totalIntervalTicks);
                 }
             }
@@ -126,14 +137,18 @@ public class AjudanteMod implements ModInitializer {
             if (!player.getInventory().insertStack(stack)) player.dropItem(stack, false);
             player.sendMessage(Text.literal("O Ajudante: hoje é seu dia!"), false);
             player.playSound(SoundEvents.ENTITY_VILLAGER_YES, SoundCategory.NEUTRAL, 1.0F, 1.0F);
+            finishEncounter(player.getServer());
         } else {
-            player.sendMessage(Text.literal("O Ajudante recusou! A raridade do item diminuiu suas chances..."), false);
-            player.playSound(SoundEvents.ENTITY_WARDEN_HEARTBEAT, SoundCategory.HOSTILE, 1.0F, 0.65F);
-            player.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 100, 3));
-            player.addStatusEffect(new StatusEffectInstance(StatusEffects.BLINDNESS, 80, 0));
-            player.damage(player.getDamageSources().magic(), 8.0F);
+            player.sendMessage(Text.literal("O Ajudante recusou! Todos foram escolhidos..."), false);
+            MinecraftServer server = player.getServer();
+            if (server != null) {
+                for (ServerPlayerEntity online : server.getPlayerManager().getPlayerList()) {
+                    ServerPlayNetworking.send(online, JUMPSCARE, PacketByteBufs.empty());
+                }
+                ticksUntilMassDeath = 40;
+            }
+            finishEncounter(server);
         }
-        finishEncounter(player.getServer());
     }
 
     private static void finishEncounter(MinecraftServer server) {

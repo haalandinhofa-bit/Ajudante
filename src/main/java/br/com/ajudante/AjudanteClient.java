@@ -6,10 +6,19 @@ import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.Text;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
 
 public class AjudanteClient implements ClientModInitializer {
     private static int secondsRemaining = -1;
     private static int totalSeconds = 1;
+    private static boolean introShown;
+
+    public static boolean consumeIntro() {
+        if (introShown) return false;
+        introShown = true;
+        return true;
+    }
 
     @Override
     public void onInitializeClient() {
@@ -24,6 +33,15 @@ public class AjudanteClient implements ClientModInitializer {
                 totalSeconds = Math.max(1, total);
             });
         });
+
+        ClientPlayNetworking.registerGlobalReceiver(AjudanteMod.JUMPSCARE, (client, handler, buf, responseSender) ->
+                client.execute(() -> {
+                    MinecraftClient minecraft = MinecraftClient.getInstance();
+                    if (minecraft.player != null) {
+                        minecraft.player.playSound(SoundEvents.ENTITY_WARDEN_HEARTBEAT, SoundCategory.HOSTILE, 1.0F, 0.65F);
+                    }
+                    minecraft.setScreen(new JumpscareScreen());
+                }));
 
         HudRenderCallback.EVENT.register((DrawContext context, float tickDelta) -> {
             MinecraftClient client = MinecraftClient.getInstance();
