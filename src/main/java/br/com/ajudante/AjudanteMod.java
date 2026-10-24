@@ -78,6 +78,7 @@ public class AjudanteMod implements ModInitializer {
         var item = id == null ? null : Registries.ITEM.getOrEmpty(id).orElse(null);
         if (item == null || item == net.minecraft.item.Items.AIR) {
             player.sendMessage(Text.literal("O Ajudante: esse ID de item não existe."), false);
+            removeNamedVillager(player);
             return;
         }
 
