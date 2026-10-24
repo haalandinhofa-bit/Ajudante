@@ -10,12 +10,6 @@
     "main": ["br.com.ajudante.AjudanteMod"],
     "client": ["br.com.ajudante.AjudanteClient"]
   },
-  "mixins": [
-    {
-      "config": "o_ajudante.client.mixins.json",
-      "environment": "client"
-    }
-  ],
   "depends": {
     "fabricloader": ">=0.15.0",
     "minecraft": "1.20.1",
